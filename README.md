@@ -65,10 +65,10 @@ boilerX/
 | Phase  | Capa 1                              | Capa 2                                       |
 | ------ | ----------------------------------- | -------------------------------------------- |
 | 0 ✅   | Monorepo + CLI skeleton             | Type interfaces (`Judge`, `Architect`, …)    |
-| 1 🚧  | `node-api` + `python-api` templates | **`LocalJudge` with composite metric ✅**    |
-| 2      | `node-web` + `python-cli` templates | Orchestrator + Docker sandbox                |
-| 3      | `gh` integration ✅, branch protection ✅ | Worktrees + N parallel workers          |
-| 4      | Polish, docs, self-tests            | Architect agent + circuit breakers + budget  |
+| 1 ✅   | `gh` integration ✅, branch protection ✅ | **`LocalJudge` with composite metric ✅** |
+| 2 ✅   | _(deferred)_                        | **Worktrees + JSONL RunLogger + Orchestrator + stubs ✅** |
+| 3 🚧  | `node-api` template (renderer)      | Real LLM-backed Architect / Worker (SDK)     |
+| 4      | `python-api` + remaining templates  | Docker sandbox for Judge + auto-apply winner |
 | 5      | Stable 1.0                          | LLM-as-judge optional + run dashboard        |
 
 ## Background reading

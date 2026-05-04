@@ -8,3 +8,5 @@ export * from "./exec.js";
 export * from "./parsers.js";
 export * from "./worktree.js";
 export * from "./run-log.js";
+export * from "./stub-architect.js";
+export * from "./stub-worker.js";
