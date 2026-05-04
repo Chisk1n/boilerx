@@ -1,0 +1,47 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  typecheck-and-test:
+    name: typecheck + build + test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Build
+        run: npm run build
+
+      - name: Test (evolve)
+        run: npm test -w @boilerx/evolve
+
+      - name: Smoke-test CLI
+        run: |
+          node packages/cli/dist/index.js --help
+          node packages/cli/dist/index.js doctor
+          node packages/cli/dist/index.js judge \
+            --target packages/evolve/tests/fixtures/sample-node-api \
+            --json
