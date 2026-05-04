@@ -112,12 +112,11 @@ Each line is one of:
 {"type":"end",       "bestScore":0.84, "bestIteration":11, "totalCostUsd":1.23}
 ```
 
-## Status (Phase 1: Judge standalone) ✅
+## Status
 
-The `LocalJudge` is implemented and exercised by Vitest against a real fixture
-project (`packages/evolve/tests/fixtures/sample-node-api`).
+### Phase 1 ✅ Judge standalone
 
-You can invoke it today via:
+`LocalJudge` exercised by Vitest against `tests/fixtures/sample-node-api`.
 
 ```bash
 boiler judge --target ./your-project --metric .judge/metric.yaml
@@ -132,13 +131,45 @@ What works:
 - Benchmark axis gated on `EVOLVE_BENCHMARK_SCORE=…` line (refuses to guess).
 - Hard timeouts per command, full execution logs captured for audit.
 
-What's NOT done yet (Phase 2):
+### Phase 2 ✅ Worktrees + RunLogger + Orchestrator
 
-- Docker sandbox around command execution. Currently runs in-process.
+Full evaluator-optimizer loop running with deterministic stubs.
+
+```bash
+boiler evolve --target ./your-project --max-iterations 5 --workers 2
+```
+
+What works:
+
+- `WorktreeManager`: creates / removes / lists ephemeral `git worktree`s under
+  `.evolve/worktrees/`, sanitizes IDs, falls back to filesystem cleanup on
+  failure, and writes a one-shot local gitignore for `.evolve/`.
+- `RunLogger`: append-only JSONL with `fsync` per write. Tagged-union records
+  (`start`, `iteration`, `abort`, `end`). `readRunLog` rejects malformed lines
+  and unknown discriminator types.
+- `Orchestrator`:
+  - Refuses to start on a dirty working tree.
+  - Records baseline score before iterations begin.
+  - Pins the Judge hash at start; aborts on drift.
+  - Enforces budgets (cost / iterations / wall-time).
+  - Runs `workersPerIteration` workers in parallel, one git worktree each.
+  - Picks the best per-iteration; flags `kept` if it improves the running best.
+  - Cleans up every worktree at the end of each iteration (winners included
+    for now; Phase 3 will optionally retain the winning worktree for
+    inspection).
+- `StubArchitect` / `StubWorker`: deterministic implementations for tests and
+  smoke runs. They satisfy the `Architect` / `Worker` interfaces, so swapping
+  them for LLM-backed implementations later doesn't touch the orchestrator.
+
+### What's NOT done yet (Phase 3+)
+
+- Real LLM-backed Architect / Worker (Cursor SDK or Claude Agent SDK).
+- Docker sandbox around Judge command execution.
+- "Apply winning worktree back to base" step (currently the orchestrator just
+  records the winning path; the user copies changes manually).
 - LLM-as-judge backend for the `llmJudgeRubric` axis.
 - Determinism check (re-run each iteration twice and compare).
-- Worktree creation/cleanup.
-- The Orchestrator that drives evaluator-optimizer loops.
+- Resume support after a killed run.
 
 ## Open questions (to resolve in Phase 2)
 

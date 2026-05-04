@@ -1,4 +1,4 @@
-import { mkdir, rm } from "node:fs/promises";
+import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import type { Logger } from "@boilerx/shared";
 import { runCommand } from "./exec.js";
@@ -42,6 +42,32 @@ export class WorktreeManager {
     this.worktreesDir = resolve(opts.worktreesDir);
     this.logger = opts.logger.child({ component: "worktree" });
     this.gitTimeoutMs = opts.gitTimeoutMs ?? 30_000;
+  }
+
+  get baseRepo(): string {
+    return this.baseRepoPath;
+  }
+
+  /**
+   * Adds a gitignore-style pattern to `.git/info/exclude` (the per-clone local
+   * ignore file). Idempotent. Useful for ignoring orchestrator runtime
+   * artifacts (`.evolve/`) without modifying the tracked `.gitignore`.
+   */
+  async ensureLocalIgnore(pattern: string): Promise<void> {
+    const excludePath = join(this.baseRepoPath, ".git", "info", "exclude");
+    let current = "";
+    try {
+      current = await readFile(excludePath, "utf8");
+    } catch {
+      // file may not exist on a fresh repo; we'll create it
+      await mkdir(dirname(excludePath), { recursive: true });
+    }
+    const lines = current.split(/\r?\n/);
+    if (lines.some((l) => l.trim() === pattern)) return;
+    const next =
+      current.length > 0 && !current.endsWith("\n") ? `${current}\n${pattern}\n` : `${current}${pattern}\n`;
+    await writeFile(excludePath, next, "utf8");
+    this.logger.info("local ignore pattern added", { pattern });
   }
 
   async ensureBaseClean(): Promise<void> {
