@@ -112,6 +112,34 @@ Each line is one of:
 {"type":"end",       "bestScore":0.84, "bestIteration":11, "totalCostUsd":1.23}
 ```
 
+## Status (Phase 1: Judge standalone) ✅
+
+The `LocalJudge` is implemented and exercised by Vitest against a real fixture
+project (`packages/evolve/tests/fixtures/sample-node-api`).
+
+You can invoke it today via:
+
+```bash
+boiler judge --target ./your-project --metric .judge/metric.yaml
+```
+
+What works:
+
+- YAML metric loading with strict weight validation (sum == 1.0 enforced).
+- Composite metric over four axes: tests, coverage, benchmark, lint.
+- Hash pinning over `judgeVersion + metric.yaml + spec`.
+- Output parsers for jest, mocha, node:test, istanbul, coverage.py, eslint, ruff.
+- Benchmark axis gated on `EVOLVE_BENCHMARK_SCORE=…` line (refuses to guess).
+- Hard timeouts per command, full execution logs captured for audit.
+
+What's NOT done yet (Phase 2):
+
+- Docker sandbox around command execution. Currently runs in-process.
+- LLM-as-judge backend for the `llmJudgeRubric` axis.
+- Determinism check (re-run each iteration twice and compare).
+- Worktree creation/cleanup.
+- The Orchestrator that drives evaluator-optimizer loops.
+
 ## Open questions (to resolve in Phase 2)
 
 - **Worker SDK selection**: Cursor SDK vs. Claude Agent SDK vs. raw

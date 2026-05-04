@@ -1,0 +1,13 @@
+weights:
+  testsPassing: 0.5
+  coverageDelta: 0.2
+  benchmarkScore: 0.2
+  lintScore: 0.1
+  llmJudgeRubric: 0.0
+
+testsCommand: "npm test"
+coverageCommand: "npm run coverage"
+benchmarkCommand: "npm run bench"
+lintCommand: "npm run lint"
+
+timeoutSeconds: 60

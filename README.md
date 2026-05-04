@@ -20,14 +20,18 @@ agents. Once a project has a `Makefile`, a CI definition, a tests folder and a
 clear `AGENTS.md`, you can point Capa 2 at it and it knows how to evaluate
 itself (`make test`, `make bench`, `make lint`). One enables the other.
 
-## Quick start (Phase 0 preview)
+## Quick start
 
 ```bash
-git clone <this repo>
-cd Boiler
+git clone https://github.com/Chisk1n/boilerx
+cd boilerx
 npm install
 npm run build
+npm test -w @boilerx/evolve
+
 node packages/cli/dist/index.js doctor
+node packages/cli/dist/index.js judge \
+  --target packages/evolve/tests/fixtures/sample-node-api
 node packages/cli/dist/index.js new my-app --stack node-api
 node packages/cli/dist/index.js evolve --target ./my-app
 ```
@@ -36,7 +40,7 @@ Or in dev mode (no build):
 
 ```bash
 npm run dev:cli -- doctor
-npm run dev:cli -- new my-app
+npm run dev:cli -- judge --target packages/evolve/tests/fixtures/sample-node-api
 ```
 
 ## What's in the box
@@ -58,14 +62,14 @@ boilerX/
 
 ## Roadmap
 
-| Phase | Capa 1                              | Capa 2                                       |
-| ----- | ----------------------------------- | -------------------------------------------- |
-| 0 ✅  | Monorepo + CLI skeleton             | Type interfaces (`Judge`, `Architect`, …)    |
-| 1     | `node-api` + `python-api` templates | Standalone `Judge` with composite metric     |
-| 2     | `node-web` + `python-cli` templates | Orchestrator (1 worker, no worktrees yet)    |
-| 3     | `gh` integration, branch protection | Worktrees + N parallel workers               |
-| 4     | Polish, docs, self-tests            | Architect agent + circuit breakers + budget  |
-| 5     | Stable 1.0                          | LLM-as-judge optional + run dashboard        |
+| Phase  | Capa 1                              | Capa 2                                       |
+| ------ | ----------------------------------- | -------------------------------------------- |
+| 0 ✅   | Monorepo + CLI skeleton             | Type interfaces (`Judge`, `Architect`, …)    |
+| 1 🚧  | `node-api` + `python-api` templates | **`LocalJudge` with composite metric ✅**    |
+| 2      | `node-web` + `python-cli` templates | Orchestrator + Docker sandbox                |
+| 3      | `gh` integration ✅, branch protection ✅ | Worktrees + N parallel workers          |
+| 4      | Polish, docs, self-tests            | Architect agent + circuit breakers + budget  |
+| 5      | Stable 1.0                          | LLM-as-judge optional + run dashboard        |
 
 ## Background reading
 

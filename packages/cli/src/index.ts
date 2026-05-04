@@ -4,6 +4,7 @@ import { createLogger } from "@boilerx/shared";
 import { registerNewCommand } from "./commands/new.js";
 import { registerEvolveCommand } from "./commands/evolve.js";
 import { registerDoctorCommand } from "./commands/doctor.js";
+import { registerJudgeCommand } from "./commands/judge.js";
 
 const logger = createLogger({ level: "info", bindings: { app: "boiler-cli" } });
 
@@ -17,6 +18,7 @@ program
   .version("0.0.1");
 
 registerNewCommand(program, logger);
+registerJudgeCommand(program, logger);
 registerEvolveCommand(program, logger);
 registerDoctorCommand(program, logger);
 
