@@ -1,0 +1,6 @@
+{
+  "name": "@boilerx/templates",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Stack templates materialized by boiler new. No build step; consumed as files."
+}

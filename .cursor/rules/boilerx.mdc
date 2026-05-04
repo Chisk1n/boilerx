@@ -1,0 +1,39 @@
+---
+description: boilerX monorepo conventions for any agent editing this repository
+alwaysApply: true
+---
+
+# boilerX rules
+
+This is an npm workspaces monorepo with packages `@boilerx/{shared,evolve,templates,cli}`.
+
+## Mandatory before editing
+
+- Read `docs/ARCHITECTURE.md`. It is the source of truth.
+- TypeScript strict mode; respect `noUncheckedIndexedAccess` and `verbatimModuleSyntax`.
+- ESM imports inside the repo MUST end in `.js` (NodeNext resolution).
+- Cross-package imports use `@boilerx/<pkg>`, never relative paths.
+
+## Style
+
+- Files: `kebab-case.ts`. Types: `PascalCase`. Variables/functions: `camelCase`.
+- No `any`. Prefer `unknown` + narrowing.
+- No narrative comments. Comments only for non-obvious *why*.
+- Logs via `createLogger` from `@boilerx/shared`. Human CLI output via `picocolors`.
+
+## Capa 2 (`packages/evolve`) sacred invariants
+
+- The `Judge` is immutable during a run. Its prompt and code are hash-pinned.
+- Workers may NEVER write outside their `hypothesis.affectedFiles`.
+- Workers may NEVER touch `.judge/`, `.evolve/`, `tests/judge/`, or `Makefile`.
+- Architects and Judges are READ-ONLY over the codebase.
+
+## Commits
+
+Conventional Commits:
+- `feat(scope):`, `fix(scope):`, `chore:`, `docs:`, `refactor(scope):`, `test(scope):`.
+- One concern per PR. Split if touching Capa 1 and Capa 2 simultaneously.
+
+## When unsure
+
+Stop and ask in chat. Do not guess.
