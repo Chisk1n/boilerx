@@ -73,3 +73,57 @@ export interface EvolveRunSummary {
   readonly totalIterations: number;
   readonly totalCostUsd: number;
 }
+
+/**
+ * JSONL records appended to `.evolve/runs/<runId>.jsonl` over a run's life.
+ *
+ * Tagged unions (discriminated by `type`) so consumers can parse and filter
+ * each line in O(1) without speculative shape checks.
+ */
+export interface RunStartRecord {
+  readonly type: "start";
+  readonly timestamp: IsoTimestamp;
+  readonly runId: string;
+  readonly config: EvolveRunConfig;
+  readonly judgeHash: string;
+  readonly baselineScore: number;
+}
+
+export interface RunIterationRecord {
+  readonly type: "iteration";
+  readonly timestamp: IsoTimestamp;
+  readonly iteration: number;
+  readonly hypothesisId: string;
+  readonly worktree: string;
+  readonly score: number;
+  readonly previousBest: number;
+  readonly kept: boolean;
+  readonly reason: string;
+  readonly costUsd: number;
+}
+
+export interface RunAbortRecord {
+  readonly type: "abort";
+  readonly timestamp: IsoTimestamp;
+  readonly reason: AbortReason;
+  readonly detail?: string;
+}
+
+export type AbortReason =
+  | "judge-hash-drift"
+  | "budget-cost"
+  | "budget-iterations"
+  | "budget-wall-time"
+  | "user-cancelled"
+  | "internal-error";
+
+export interface RunEndRecord {
+  readonly type: "end";
+  readonly timestamp: IsoTimestamp;
+  readonly bestScore: number;
+  readonly bestIteration?: number;
+  readonly totalIterations: number;
+  readonly totalCostUsd: number;
+}
+
+export type RunRecord = RunStartRecord | RunIterationRecord | RunAbortRecord | RunEndRecord;

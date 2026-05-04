@@ -6,3 +6,5 @@ export * from "./local-judge.js";
 export * from "./metric-loader.js";
 export * from "./exec.js";
 export * from "./parsers.js";
+export * from "./worktree.js";
+export * from "./run-log.js";
