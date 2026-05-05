@@ -161,7 +161,21 @@ What works:
   smoke runs. They satisfy the `Architect` / `Worker` interfaces, so swapping
   them for LLM-backed implementations later doesn't touch the orchestrator.
 
-### Phase 3 ✅ CursorWorker (LLM-backed Worker)
+### Phase 3 ✅ CursorArchitect + CursorWorker (full LLM loop)
+
+Both the Architect and the Worker are now LLM-backed via `@cursor/sdk`.
+
+`CursorArchitect`:
+- Runs `Agent.prompt(...)` against the **target repo**, asks for `n` JSON
+  hypotheses, parses with retry-on-malformed (default 1 retry), and assigns
+  stable IDs (`h-<callIndex>-<i>`).
+- Read-only enforcement: after every prompt, `git checkout HEAD -- .` and
+  `git clean -fd .` discard any working-tree changes the LLM made while
+  exploring. The orchestrator's hash-pinning would catch tampering anyway,
+  but reverting prevents wasted iterations.
+- Forbidden paths (`.judge/`, `.evolve/`, `tests/judge/`, `.git/`, `.github/`,
+  `Makefile`) are stripped from `affectedFiles` automatically before the
+  hypothesis reaches the worker.
 
 `CursorWorker` runs `Agent.prompt(...)` from `@cursor/sdk` against a worktree.
 File-edit safeguards run after every prompt:

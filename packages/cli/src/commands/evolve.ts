@@ -3,6 +3,7 @@ import type { Command } from "commander";
 import pc from "picocolors";
 import type { Logger } from "@boilerx/shared";
 import {
+  CursorArchitect,
   CursorWorker,
   LocalJudge,
   Orchestrator,
@@ -10,6 +11,7 @@ import {
   StubWorker,
   WorktreeManager,
   loadMetricSpec,
+  type Architect,
   type Worker,
 } from "@boilerx/evolve";
 
@@ -54,17 +56,8 @@ export function registerEvolveCommand(program: Command, logger: Logger): void {
         worktreesDir: resolvePath(target, ".evolve", "worktrees"),
         logger,
       });
-      const architect = new StubArchitect({
-        hypotheses: [
-          {
-            summary: "no-op exploration baseline",
-            rationale:
-              "Stub architect: every hypothesis is a no-op until a real LLM-backed Architect ships.",
-            affectedFiles: [],
-          },
-        ],
-      });
 
+      const architect = buildArchitect(runtime, opts.model, logger);
       const workerFactory = buildWorkerFactory(runtime, opts.model, logger);
 
       const orch = new Orchestrator({
@@ -115,15 +108,40 @@ function buildWorkerFactory(runtime: Runtime, model: string, logger: Logger): ()
     case "stub":
       return () => new StubWorker({ mutate: () => [], costUsd: 0 });
     case "cursor": {
-      const apiKey = process.env.CURSOR_API_KEY;
-      if (!apiKey || apiKey.trim() === "") {
-        throw new Error(
-          "CURSOR_API_KEY is required for runtime=cursor. Set it in .env or your shell, then re-run with `node --env-file=.env packages/cli/dist/index.js evolve --runtime cursor`.",
-        );
-      }
+      const apiKey = requireCursorKey();
       return () => new CursorWorker({ apiKey, model, logger });
     }
   }
+}
+
+function buildArchitect(runtime: Runtime, model: string, logger: Logger): Architect {
+  switch (runtime) {
+    case "stub":
+      return new StubArchitect({
+        hypotheses: [
+          {
+            summary: "no-op exploration baseline",
+            rationale:
+              "Stub architect: every hypothesis is a no-op. Use --runtime cursor for real proposals.",
+            affectedFiles: [],
+          },
+        ],
+      });
+    case "cursor": {
+      const apiKey = requireCursorKey();
+      return new CursorArchitect({ apiKey, model, logger });
+    }
+  }
+}
+
+function requireCursorKey(): string {
+  const apiKey = process.env.CURSOR_API_KEY;
+  if (!apiKey || apiKey.trim() === "") {
+    throw new Error(
+      "CURSOR_API_KEY is required for runtime=cursor. Set it in .env or your shell, then re-run with `node --env-file=.env packages/cli/dist/index.js evolve --runtime cursor`.",
+    );
+  }
+  return apiKey;
 }
 
 interface EvolveOptions {
