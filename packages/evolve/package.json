@@ -19,6 +19,7 @@
   },
   "dependencies": {
     "@boilerx/shared": "*",
+    "@cursor/sdk": "^1.0.12",
     "yaml": "^2.8.4"
   },
   "devDependencies": {
