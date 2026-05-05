@@ -161,9 +161,33 @@ What works:
   smoke runs. They satisfy the `Architect` / `Worker` interfaces, so swapping
   them for LLM-backed implementations later doesn't touch the orchestrator.
 
-### What's NOT done yet (Phase 3+)
+### Phase 3 ✅ CursorWorker (LLM-backed Worker)
 
-- Real LLM-backed Architect / Worker (Cursor SDK or Claude Agent SDK).
+`CursorWorker` runs `Agent.prompt(...)` from `@cursor/sdk` against a worktree.
+File-edit safeguards run after every prompt:
+
+- Files modified outside `hypothesis.affectedFiles` are reverted with
+  `git checkout -- <file>`.
+- Files matching forbidden prefixes (`.judge/`, `.evolve/`, `tests/judge/`,
+  `.git/`, `.github/`, `Makefile`) are reverted unconditionally.
+- The orchestrator only sees `WorkerOutput.filesModified` filtered to
+  authorized paths.
+
+```bash
+# .env (gitignored)
+CURSOR_API_KEY=cursor_…
+
+# Run
+node --env-file=.env packages/cli/dist/index.js evolve \
+  --target ./your-project \
+  --runtime cursor --model composer-2 \
+  --max-iterations 5 --workers 2 --max-cost-usd 1.00
+```
+
+### What's NOT done yet (Phase 4+)
+
+- Real LLM-backed **Architect** (workers are LLM-driven, the architect is
+  still a `StubArchitect` cycling fixed hypotheses).
 - Docker sandbox around Judge command execution.
 - "Apply winning worktree back to base" step (currently the orchestrator just
   records the winning path; the user copies changes manually).

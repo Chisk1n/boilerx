@@ -3,15 +3,19 @@ import type { Command } from "commander";
 import pc from "picocolors";
 import type { Logger } from "@boilerx/shared";
 import {
+  CursorWorker,
   LocalJudge,
   Orchestrator,
   StubArchitect,
   StubWorker,
   WorktreeManager,
   loadMetricSpec,
+  type Worker,
 } from "@boilerx/evolve";
 
 const JUDGE_VERSION = "1.0.0";
+const RUNTIMES = ["stub", "cursor"] as const;
+type Runtime = (typeof RUNTIMES)[number];
 
 export function registerEvolveCommand(program: Command, logger: Logger): void {
   program
@@ -25,18 +29,18 @@ export function registerEvolveCommand(program: Command, logger: Logger): void {
     .option("-w, --workers <n>", "Workers per iteration", "2")
     .option("--max-cost-usd <usd>", "Hard cap on LLM spend (USD)", "1.00")
     .option("--max-wall-min <min>", "Hard cap on wall-clock minutes", "30")
-    .option("--model <id>", "LLM model identifier (informational only with stubs)", "stub")
+    .option("--model <id>", "LLM model identifier (Cursor SDK model id)", "composer-2")
     .option(
-      "--stub",
-      "Use stub Architect and Worker (deterministic; useful for smoke-testing the pipeline). " +
-        "Real LLM-backed agents land in a later phase.",
-      true,
+      "--runtime <kind>",
+      `Worker runtime: ${RUNTIMES.join(" | ")}. Default 'stub' (deterministic, no LLM).`,
+      "stub",
     )
     .action(async (opts: EvolveOptions) => {
       const target = resolvePath(opts.target);
       const metricFilePath = resolvePath(target, opts.metric);
+      const runtime = parseRuntime(opts.runtime);
 
-      logger.info("evolve starting", { target, metricFilePath });
+      logger.info("evolve starting", { target, metricFilePath, runtime, model: opts.model });
 
       const spec = await loadMetricSpec(metricFilePath);
       const judge = await LocalJudge.create({
@@ -60,13 +64,12 @@ export function registerEvolveCommand(program: Command, logger: Logger): void {
           },
         ],
       });
+
+      const workerFactory = buildWorkerFactory(runtime, opts.model, logger);
+
       const orch = new Orchestrator({
         architect,
-        workerFactory: () =>
-          new StubWorker({
-            mutate: () => [],
-            costUsd: 0,
-          }),
+        workerFactory,
         judge,
         worktreeManager: wt,
         logger,
@@ -86,6 +89,8 @@ export function registerEvolveCommand(program: Command, logger: Logger): void {
       console.log(pc.bold(pc.magenta("boilerX :: evolve summary")));
       console.log(pc.dim("───────────────────────────────────────────"));
       console.log(`  ${pc.bold("runId")}            ${summary.runId}`);
+      console.log(`  ${pc.bold("runtime")}          ${runtime}`);
+      console.log(`  ${pc.bold("model")}            ${opts.model}`);
       console.log(`  ${pc.bold("started")}          ${summary.startedAt}`);
       console.log(`  ${pc.bold("ended")}            ${summary.endedAt ?? "(in progress)"}`);
       console.log(`  ${pc.bold("iterations")}       ${summary.totalIterations}`);
@@ -95,11 +100,30 @@ export function registerEvolveCommand(program: Command, logger: Logger): void {
       );
       console.log(`  ${pc.bold("total cost")}       $${summary.totalCostUsd.toFixed(4)}`);
       console.log("");
-      console.log(
-        pc.dim(`  log: ${target}/.evolve/runs/${summary.runId}.jsonl`),
-      );
+      console.log(pc.dim(`  log: ${target}/.evolve/runs/${summary.runId}.jsonl`));
       console.log("");
     });
+}
+
+function parseRuntime(value: string): Runtime {
+  if ((RUNTIMES as readonly string[]).includes(value)) return value as Runtime;
+  throw new Error(`Unknown runtime '${value}'. Valid: ${RUNTIMES.join(", ")}`);
+}
+
+function buildWorkerFactory(runtime: Runtime, model: string, logger: Logger): () => Worker {
+  switch (runtime) {
+    case "stub":
+      return () => new StubWorker({ mutate: () => [], costUsd: 0 });
+    case "cursor": {
+      const apiKey = process.env.CURSOR_API_KEY;
+      if (!apiKey || apiKey.trim() === "") {
+        throw new Error(
+          "CURSOR_API_KEY is required for runtime=cursor. Set it in .env or your shell, then re-run with `node --env-file=.env packages/cli/dist/index.js evolve --runtime cursor`.",
+        );
+      }
+      return () => new CursorWorker({ apiKey, model, logger });
+    }
+  }
 }
 
 interface EvolveOptions {
@@ -110,5 +134,5 @@ interface EvolveOptions {
   readonly maxCostUsd: string;
   readonly maxWallMin: string;
   readonly model: string;
-  readonly stub: boolean;
+  readonly runtime: string;
 }
