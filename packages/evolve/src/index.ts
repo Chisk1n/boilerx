@@ -11,3 +11,4 @@ export * from "./run-log.js";
 export * from "./stub-architect.js";
 export * from "./stub-worker.js";
 export * from "./cursor-worker.js";
+export * from "./cursor-architect.js";
