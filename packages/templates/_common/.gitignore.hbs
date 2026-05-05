@@ -1,0 +1,57 @@
+# Editors / OS
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# Logs
+*.log
+
+# Environment
+.env
+.env.local
+.env.*.local
+!.env.example
+
+{{#if (eq language "typescript")}}
+# Node / TypeScript
+node_modules/
+dist/
+build/
+out/
+*.tsbuildinfo
+coverage/
+.nyc_output/
+.turbo/
+{{/if}}
+{{#if (eq language "python")}}
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+.eggs/
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+htmlcov/
+.coverage
+.coverage.*
+{{/if}}
+
+{{#if dockerEnabled}}
+# Docker
+.docker-compose.override.yml
+{{/if}}
+
+{{#if evolveEnabled}}
+# Evolve runtime artifacts (boilerX Capa 2)
+.evolve/runs/
+.evolve/worktrees/
+.evolve/cache/
+{{/if}}

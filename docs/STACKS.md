@@ -3,10 +3,24 @@
 Each stack is a self-contained template under `packages/templates/<stack>`.
 On `boiler new my-app --stack <kind>`, the renderer:
 
-1. Copies `packages/templates/_common/**`.
-2. Copies `packages/templates/<kind>/**` (overwrites common where they clash).
-3. Substitutes `{{var}}` placeholders driven by `ProjectConfig`.
-4. Optionally runs `git init`, `gh repo create`, and the first commit.
+1. Walks `packages/templates/_common/**` first.
+2. Then walks `packages/templates/<kind>/**` (overlays the common files; later
+   roots overwrite earlier ones at the same relative path).
+3. For each file:
+   - If the file ends in `.hbs`, its **content** is run through Handlebars
+     using the `TemplateVars` derived from the `ProjectConfig`, and the
+     `.hbs` extension is stripped on output.
+   - If not, the file is copied verbatim. This keeps binary files and files
+     that legitimately contain `{{ … }}` (e.g. test fixtures) safe.
+4. Path components are also rendered, so directory names like `{{name}}/`
+   work.
+5. Optionally runs `git init`, `gh repo create`, and the first commit
+   (deferred — Phase 4).
+
+Available helpers in templates:
+
+- `{{#if (eq language "typescript")}}` / `{{#if (eq language "python")}}`
+- `{{upper x}}`, `{{lower x}}`, `{{kebab x}}`, `{{pascal x}}`
 
 ## Common files (every stack)
 

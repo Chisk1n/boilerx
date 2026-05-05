@@ -1,0 +1,68 @@
+# {{name}}
+
+> **{{displayName}}** — {{stackDescription}}
+
+Generated with [boilerX](https://github.com/Chisk1n/boilerx) — `{{stack}}` stack.
+
+## Quick start
+
+{{#if (eq language "typescript")}}
+```bash
+npm install
+npm test
+{{#if defaultPort}}npm run dev   # listens on http://localhost:{{defaultPort}}{{/if}}
+```
+{{/if}}
+{{#if (eq language "python")}}
+```bash
+uv sync
+uv run pytest
+{{#if defaultPort}}uv run dev   # listens on http://localhost:{{defaultPort}}{{/if}}
+```
+{{/if}}
+
+{{#if dockerEnabled}}
+## Docker
+
+```bash
+make docker        # build the image
+make docker-run    # run with docker compose
+```
+{{/if}}
+
+## Project layout
+
+This project ships with the boilerX baseline:
+
+- Linter + formatter pre-wired
+- Pre-commit hook running format + lint on staged files
+- Conventional Commits + commitlint
+- Tests skeleton (unit / integration / e2e where applicable)
+{{#if ciGithubActions}}- GitHub Actions CI: lint → test → build
+{{/if}}{{#if dockerEnabled}}- Multi-stage Dockerfile + docker-compose for local dev
+{{/if}}- `AGENTS.md` and `.cursor/rules/` so AI agents working in this repo follow your conventions
+
+## Make targets
+
+| Command         | What it does                          |
+| --------------- | ------------------------------------- |
+| `make test`     | Run the test suite                    |
+| `make lint`     | Run the linter / formatter check      |
+| `make run`      | Start the project locally             |
+{{#if dockerEnabled}}| `make docker`   | Build the Docker image                |
+| `make docker-run` | Run the project under docker-compose |
+{{/if}}{{#if evolveEnabled}}| `make evolve`   | Drive `boiler evolve` against this project (uses `{{judgeMetricFile}}`) |
+{{/if}}
+
+## Conventions
+
+See `AGENTS.md` for the full set of conventions humans and AI agents both
+follow when working on this repo. The TL;DR:
+
+- {{#if conventionalCommits}}Conventional Commits.{{else}}Plain English commit messages.{{/if}}
+- Default branch is `{{defaultBranch}}`.
+- Coverage threshold: {{coverageThreshold}}%.
+
+## License
+
+MIT — see `LICENSE`.
