@@ -1,0 +1,72 @@
+# AGENTS.md — {{name}}
+
+Conventions every AI agent (Cursor, Claude Code, Codex, etc.) and human
+contributor must follow when working on this repository.
+
+## Stack
+
+- **Kind**: `{{stack}}` ({{displayName}})
+- **Language**: {{language}}
+- **Tests**: {{testFramework}}
+{{#if defaultPort}}- **Default port**: {{defaultPort}}
+{{/if}}- **Default branch**: `{{defaultBranch}}`
+
+## Coding conventions
+
+{{#if (eq language "typescript")}}
+- TypeScript strict mode. No `any` — prefer `unknown` and narrow.
+- ESM only. Imports inside this repo end in `.js` (NodeNext resolution).
+- File names in kebab-case. Types/interfaces in PascalCase. Functions/vars in camelCase.
+- Errors: throw `Error` with a clear message. Wrap external errors with `{ cause }`.
+- Logs go through a single structured logger; never `console.log` directly in production code.
+{{/if}}
+{{#if (eq language "python")}}
+- Python 3.12+. Type hints on every public function. Run `mypy --strict`.
+- File names in snake_case. Classes in PascalCase. Functions/vars in snake_case.
+- Errors: raise specific exception types; never bare `except:`.
+- Logs go through `loguru` configured for JSON output.
+{{/if}}
+- Comments only for non-obvious *why*. Never narrate code.
+- Tests live next to the code they cover (or under `tests/` mirroring source).
+
+## Tests & checks
+
+- `make test` MUST pass before opening a PR.
+- `make lint` MUST be clean before opening a PR.
+- Coverage threshold is **{{coverageThreshold}}%**; CI fails if it drops.
+- Add a test for any non-trivial change. PRs without tests need explicit justification.
+
+## Commits & PRs
+
+{{#if conventionalCommits}}- **Conventional Commits** are enforced via `commitlint`. Examples:
+  - `feat(api): add /healthz endpoint`
+  - `fix(db): handle empty result set`
+  - `chore: bump dependencies`
+- Subject in imperative mood, lowercase, no trailing period.
+{{else}}- Plain English commit messages, imperative mood, present tense.
+{{/if}}
+- One concern per PR. Split if a diff touches unrelated areas.
+- Update docs in the same PR as code changes that affect the public surface.
+
+{{#if dockerEnabled}}
+## Docker
+
+- The project builds with a multi-stage `Dockerfile`.
+- `docker-compose.yml` is the dev profile (with hot-reload where applicable).
+- Never bake secrets into images. Use `.env` (gitignored) and `.env.example`.
+
+{{/if}}
+{{#if evolveEnabled}}
+## boilerX evolve
+
+This repo opts into the boilerX Capa-2 evolve loop.
+
+- `{{judgeMetricFile}}` defines the composite metric. Weights MUST sum to 1.0.
+- `make evolve` runs `boiler evolve --target . --metric {{judgeMetricFile}}`.
+- The Judge is **immutable** during a run. NEVER modify `{{judgeMetricFile}}`,
+  files under `.judge/`, or test files the Judge depends on while a worker.
+
+{{/if}}
+## What to do if you're unsure
+
+Ask in chat. Do not guess and ship.

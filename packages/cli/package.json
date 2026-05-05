@@ -16,16 +16,20 @@
   "scripts": {
     "build": "tsc -b",
     "clean": "rimraf dist",
-    "dev": "tsx src/index.ts"
+    "dev": "tsx src/index.ts",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@boilerx/evolve": "*",
     "@boilerx/shared": "*",
     "commander": "^12.1.0",
+    "handlebars": "^4.7.9",
     "picocolors": "^1.1.1",
     "prompts": "^2.4.2"
   },
   "devDependencies": {
-    "@types/prompts": "^2.4.9"
+    "@types/prompts": "^2.4.9",
+    "vitest": "^2.1.9"
   }
 }
