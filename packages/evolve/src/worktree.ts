@@ -102,6 +102,144 @@ export class WorktreeManager {
     return { path: wtPath, branch };
   }
 
+  /**
+   * Copies the working-tree changes from `handle` back into the base repo
+   * AND commits them. We commit (not just apply) because subsequent
+   * iterations create worktrees from `HEAD` — without the commit they would
+   * never see the previous winner's improvements. After this method, the
+   * base repo's HEAD has advanced by exactly one commit.
+   *
+   * Mechanism:
+   *   1. `git diff --binary HEAD` in the worktree → unified patch.
+   *   2. `git apply --3way` in the base repo → working tree has changes.
+   *   3. `git add -A && git commit -m <message>` in the base repo → HEAD
+   *      moves forward.
+   *
+   * Returns `{ applied: true, files, commitSha }` on success. On any
+   * failure (no diff, apply rejected, commit failed) returns
+   * `{ applied: false, reason }` — never throws. The base repo's working
+   * tree is restored with `git checkout HEAD -- . && git clean -fd .` if
+   * apply succeeded but commit failed, so we never leave a dirty base.
+   *
+   * Commit author is hard-coded to `boilerx-evolve <evolve@boilerx.local>`
+   * so a `git log --author=boilerx-evolve` filter is trivial. The user's
+   * git config is untouched; we use `-c user.name -c user.email` per call.
+   */
+  async applyWorktreePatch(
+    handle: WorktreeHandle,
+    commitMessage: string,
+  ): Promise<
+    | { applied: true; files: readonly string[]; commitSha: string }
+    | { applied: false; reason: string }
+  > {
+    const intentResult = await runCommand("git add -N .", {
+      cwd: handle.path,
+      timeoutMs: this.gitTimeoutMs,
+    });
+    if (intentResult.exitCode !== 0) {
+      return {
+        applied: false,
+        reason: `git add -N . failed in ${handle.path}: ${intentResult.stderr || intentResult.stdout}`,
+      };
+    }
+
+    const diffResult = await runCommand("git diff --binary HEAD", {
+      cwd: handle.path,
+      timeoutMs: this.gitTimeoutMs,
+    });
+    if (diffResult.exitCode !== 0) {
+      return {
+        applied: false,
+        reason: `git diff failed in ${handle.path}: ${diffResult.stderr || diffResult.stdout}`,
+      };
+    }
+    if (diffResult.stdout.trim() === "") {
+      return { applied: false, reason: "no diff to apply (worktree had no changes)" };
+    }
+
+    const filesResult = await runCommand("git diff --name-only HEAD", {
+      cwd: handle.path,
+      timeoutMs: this.gitTimeoutMs,
+    });
+    const files =
+      filesResult.exitCode === 0
+        ? filesResult.stdout
+            .split(/\r?\n/)
+            .map((s) => s.trim())
+            .filter((s) => s.length > 0)
+        : [];
+
+    const patchPath = join(this.baseRepoPath, ".git", "boilerx-apply.patch");
+    await writeFile(patchPath, diffResult.stdout, "utf8");
+
+    const applyResult = await runCommand(`git apply --3way "${patchPath}"`, {
+      cwd: this.baseRepoPath,
+      timeoutMs: this.gitTimeoutMs,
+    });
+
+    try {
+      await rm(patchPath, { force: true });
+    } catch {
+      // ignore
+    }
+
+    if (applyResult.exitCode !== 0) {
+      return {
+        applied: false,
+        reason: `git apply failed: ${applyResult.stderr || applyResult.stdout}`,
+      };
+    }
+
+    const stageResult = await runCommand("git add -A", {
+      cwd: this.baseRepoPath,
+      timeoutMs: this.gitTimeoutMs,
+    });
+    if (stageResult.exitCode !== 0) {
+      this.logger.warn("git add -A failed before commit", { stderr: stageResult.stderr });
+    }
+
+    const sanitizedMessage = commitMessage.replace(/"/g, '\\"');
+    const commitCmd =
+      `git -c user.name=boilerx-evolve -c user.email=evolve@boilerx.local ` +
+      `commit -m "${sanitizedMessage}" --no-verify --no-gpg-sign`;
+    const commitResult = await runCommand(commitCmd, {
+      cwd: this.baseRepoPath,
+      timeoutMs: this.gitTimeoutMs,
+    });
+
+    if (commitResult.exitCode !== 0) {
+      this.logger.warn("commit of applied patch failed; reverting working tree", {
+        stderr: commitResult.stderr,
+      });
+      await runCommand("git checkout HEAD -- .", {
+        cwd: this.baseRepoPath,
+        timeoutMs: this.gitTimeoutMs,
+      });
+      await runCommand("git clean -fd .", {
+        cwd: this.baseRepoPath,
+        timeoutMs: this.gitTimeoutMs,
+      });
+      return {
+        applied: false,
+        reason: `git commit failed: ${commitResult.stderr || commitResult.stdout}`,
+      };
+    }
+
+    const shaResult = await runCommand("git rev-parse HEAD", {
+      cwd: this.baseRepoPath,
+      timeoutMs: this.gitTimeoutMs,
+    });
+    const commitSha =
+      shaResult.exitCode === 0 ? shaResult.stdout.trim().slice(0, 12) : "(unknown)";
+
+    this.logger.info("winner patch applied and committed", {
+      branch: handle.branch,
+      files,
+      commitSha,
+    });
+    return { applied: true, files, commitSha };
+  }
+
   async remove(handle: WorktreeHandle): Promise<void> {
     const removeResult = await this.git(["worktree", "remove", "--force", handle.path]);
     if (removeResult.exitCode !== 0) {

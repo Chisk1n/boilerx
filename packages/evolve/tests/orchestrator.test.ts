@@ -82,6 +82,7 @@ describe("Orchestrator", () => {
     judge: Judge;
     workerMutate?: (input: { worktreePath: string; iteration: number }) => Promise<readonly string[]> | readonly string[];
     workerCostUsd?: number;
+    autoApplyWinner?: boolean;
   }): Orchestrator {
     const wt = new WorktreeManager({
       baseRepoPath: repo,
@@ -110,6 +111,7 @@ describe("Orchestrator", () => {
       worktreeManager: wt,
       logger: SILENT_LOGGER,
       runDirOverride: join(repo, ".evolve", "runs"),
+      autoApplyWinner: opts.autoApplyWinner ?? false,
     });
   }
 
@@ -224,6 +226,38 @@ describe("Orchestrator", () => {
     const list = await wt.list();
     const evolveOnly = list.filter((p) => p.includes("evolve"));
     expect(evolveOnly.length).toBe(0);
+  });
+
+  it("autoApplyWinner=true commits the kept iteration to the base repo", async () => {
+    let calls = 0;
+    const judge = new ProgrammableJudge({
+      hash: "h",
+      scoreFn: () => {
+        calls++;
+        return calls === 1 ? 0.4 : 0.9;
+      },
+    });
+    const orch = makeOrch({
+      judge,
+      autoApplyWinner: true,
+      workerMutate: async (input) => {
+        await writeFile(join(input.worktreePath, "score.txt"), `${input.iteration}\n`);
+        return ["score.txt"];
+      },
+    });
+    await orch.run(baseConfig({ target: repo, maxIterations: 1, workersPerIteration: 1 }));
+
+    const final = (
+      await import("node:fs/promises")
+    ).readFile(join(repo, "score.txt"), "utf8");
+    const content = (await final).replace(/\r\n/g, "\n");
+    expect(content).toBe("1\n");
+
+    const log = await runCommand("git log --pretty=format:%s -2", {
+      cwd: repo,
+      timeoutMs: 10_000,
+    });
+    expect(log.stdout).toMatch(/feat\(evolve\):/);
   });
 });
 

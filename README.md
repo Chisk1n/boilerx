@@ -68,7 +68,7 @@ boilerX/
 | 1 ✅   | `gh` integration ✅, branch protection ✅ | **`LocalJudge` with composite metric ✅** |
 | 2 ✅   | _(deferred)_                        | **Worktrees + JSONL RunLogger + Orchestrator + stubs ✅** |
 | 3 ✅   | Renderer + `_common` template ✅ | CursorWorker + CursorArchitect (full LLM loop, anti-Goodhart fences) ✅ |
-| 4 🚧  | `node-api` template (Fastify+Vitest+Docker)  | **Cost reporting (estimated) ✅** ; auto-apply winner ; Docker sandbox |
+| 4 🚧  | `node-api` template (Fastify+Vitest+Docker)  | **Cost reporting (estimated) ✅** ; **Auto-apply winner ✅** ; Docker sandbox |
 | 5      | `python-api` + remaining templates  | LLM-as-judge optional + run dashboard        |
 
 ## Background reading
