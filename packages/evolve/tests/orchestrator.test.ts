@@ -238,10 +238,11 @@ describe("StubArchitect / StubWorker", () => {
     const ctx = { target: "/x", previousIterations: [], bestScore: 0 };
     const first = await arch.proposeHypotheses(ctx, 3);
     const second = await arch.proposeHypotheses(ctx, 3);
-    expect(first.map((h) => h.summary)).toEqual(["a", "b", "a"]);
-    expect(second.map((h) => h.summary)).toEqual(["b", "a", "b"]);
-    expect(first[0]?.id).toBe("h-0-0");
-    expect(second[0]?.id).toBe("h-1-0");
+    expect(first.hypotheses.map((h) => h.summary)).toEqual(["a", "b", "a"]);
+    expect(second.hypotheses.map((h) => h.summary)).toEqual(["b", "a", "b"]);
+    expect(first.hypotheses[0]?.id).toBe("h-0-0");
+    expect(second.hypotheses[0]?.id).toBe("h-1-0");
+    expect(first.costUsd).toBe(0);
   });
 
   it("StubWorker reports failures on mutate throwing", async () => {

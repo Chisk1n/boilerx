@@ -1,5 +1,5 @@
 import type { Hypothesis } from "@boilerx/shared";
-import type { Architect, ArchitectContext } from "./architect.js";
+import type { Architect, ArchitectContext, ArchitectProposal } from "./architect.js";
 
 export interface StubArchitectOptions {
   readonly hypotheses: ReadonlyArray<Omit<Hypothesis, "id">>;
@@ -24,7 +24,7 @@ export class StubArchitect implements Architect {
     this.pool = opts.hypotheses;
   }
 
-  async proposeHypotheses(_ctx: ArchitectContext, n: number): Promise<readonly Hypothesis[]> {
+  async proposeHypotheses(_ctx: ArchitectContext, n: number): Promise<ArchitectProposal> {
     if (n < 1) throw new Error(`StubArchitect.proposeHypotheses requires n >= 1, got ${n}.`);
     const callIndex = this.callCount++;
     const out: Hypothesis[] = [];
@@ -32,6 +32,6 @@ export class StubArchitect implements Architect {
       const tpl = this.pool[(callIndex + i) % this.pool.length]!;
       out.push({ id: `h-${callIndex}-${i}`, ...tpl });
     }
-    return out;
+    return { hypotheses: out, costUsd: 0 };
   }
 }

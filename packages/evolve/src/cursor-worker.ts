@@ -1,5 +1,6 @@
 import { Agent, CursorAgentError } from "@cursor/sdk";
 import type { Logger } from "@boilerx/shared";
+import { estimateRunCost } from "./cost.js";
 import { runCommand } from "./exec.js";
 import type { Worker, WorkerInput, WorkerOutput } from "./worker.js";
 
@@ -81,12 +82,15 @@ export class CursorWorker implements Worker {
         this.timeoutMs,
       );
 
+      const responseText = typeof result.result === "string" ? result.result : "";
+      const cost = estimateRunCost({ prompt, response: responseText, model: this.model });
+
       if (result.status !== "finished") {
         return {
           success: false,
           filesModified: [],
           notes: `cursor agent ended with status='${result.status}' (id=${result.id})`,
-          costUsd: 0,
+          costUsd: cost.totalUsd,
         };
       }
 
@@ -99,11 +103,19 @@ export class CursorWorker implements Worker {
           )
         : { kept: [...allModified], reverted: [] as string[], reasons: new Map<string, string>() };
 
+      this.logger.info("worker cost estimate", {
+        hypothesisId: input.hypothesis.id,
+        inputTokens: cost.inputTokens,
+        outputTokens: cost.outputTokens,
+        totalUsd: cost.totalUsd,
+        modelKnown: cost.modelKnown,
+      });
+
       return {
         success: true,
         filesModified: enforcement.kept,
-        notes: this.summarizeNotes(result, enforcement),
-        costUsd: 0,
+        notes: this.summarizeNotes(result, enforcement, cost.totalUsd),
+        costUsd: cost.totalUsd,
       };
     } catch (err) {
       if (err instanceof CursorAgentError) {
@@ -183,11 +195,15 @@ export class CursorWorker implements Worker {
   private summarizeNotes(
     result: { id?: string; result?: unknown },
     enforcement: { kept: string[]; reverted: string[]; reasons: Map<string, string> },
+    costUsd?: number,
   ): string {
     const lines: string[] = [];
     if (result.id) lines.push(`run=${result.id}`);
     if (typeof result.result === "string" && result.result.length > 0) {
       lines.push(`result=${result.result.slice(0, 500)}`);
+    }
+    if (typeof costUsd === "number") {
+      lines.push(`cost~$${costUsd.toFixed(6)} (estimated)`);
     }
     if (enforcement.reverted.length > 0) {
       lines.push(`reverted ${enforcement.reverted.length} out-of-bounds file(s):`);

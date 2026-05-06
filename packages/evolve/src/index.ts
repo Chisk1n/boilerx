@@ -12,3 +12,4 @@ export * from "./stub-architect.js";
 export * from "./stub-worker.js";
 export * from "./cursor-worker.js";
 export * from "./cursor-architect.js";
+export * from "./cost.js";
