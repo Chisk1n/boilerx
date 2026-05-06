@@ -67,9 +67,9 @@ boilerX/
 | 0 ✅   | Monorepo + CLI skeleton             | Type interfaces (`Judge`, `Architect`, …)    |
 | 1 ✅   | `gh` integration ✅, branch protection ✅ | **`LocalJudge` with composite metric ✅** |
 | 2 ✅   | _(deferred)_                        | **Worktrees + JSONL RunLogger + Orchestrator + stubs ✅** |
-| 3 🚧  | **Renderer + `_common` template ✅** ; `node-api` template next | **CursorWorker + CursorArchitect (full LLM loop, anti-Goodhart fences) ✅** |
-| 4      | `python-api` + remaining templates  | Docker sandbox for Judge + auto-apply winner |
-| 5      | Stable 1.0                          | LLM-as-judge optional + run dashboard        |
+| 3 ✅   | Renderer + `_common` template ✅ | CursorWorker + CursorArchitect (full LLM loop, anti-Goodhart fences) ✅ |
+| 4 🚧  | `node-api` template (Fastify+Vitest+Docker)  | **Cost reporting (estimated) ✅** ; auto-apply winner ; Docker sandbox |
+| 5      | `python-api` + remaining templates  | LLM-as-judge optional + run dashboard        |
 
 ## Background reading
 

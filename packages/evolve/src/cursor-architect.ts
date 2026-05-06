@@ -1,7 +1,8 @@
 import { Agent, CursorAgentError } from "@cursor/sdk";
 import type { Hypothesis, Logger } from "@boilerx/shared";
+import { estimateRunCost } from "./cost.js";
 import { runCommand } from "./exec.js";
-import type { Architect, ArchitectContext } from "./architect.js";
+import type { Architect, ArchitectContext, ArchitectProposal } from "./architect.js";
 
 export interface CursorArchitectOptions {
   readonly apiKey: string;
@@ -61,17 +62,19 @@ export class CursorArchitect implements Architect {
     this.promptBuilder = opts.promptBuilder ?? defaultPromptBuilder;
   }
 
-  async proposeHypotheses(ctx: ArchitectContext, n: number): Promise<readonly Hypothesis[]> {
+  async proposeHypotheses(ctx: ArchitectContext, n: number): Promise<ArchitectProposal> {
     if (n < 1) throw new Error(`proposeHypotheses requires n >= 1, got ${n}.`);
     const callIndex = this.callCount++;
     const prompt = this.promptBuilder(ctx, n);
     this.logger.info("architect proposing", { callIndex, n, target: ctx.target });
 
     let lastErr: string | undefined;
+    let totalCostUsd = 0;
     for (let attempt = 0; attempt <= this.maxRetries; attempt++) {
+      const sentPrompt = attempt === 0 ? prompt : retryPrompt(prompt, lastErr ?? "?");
       try {
         const result = await withTimeout(
-          Agent.prompt(attempt === 0 ? prompt : retryPrompt(prompt, lastErr ?? "?"), {
+          Agent.prompt(sentPrompt, {
             apiKey: this.apiKey,
             model: { id: this.model },
             local: { cwd: ctx.target, settingSources: [] },
@@ -80,12 +83,19 @@ export class CursorArchitect implements Architect {
         );
         await this.discardWorkingTreeChanges(ctx.target);
 
+        const responseText = typeof result.result === "string" ? result.result : "";
+        const cost = estimateRunCost({
+          prompt: sentPrompt,
+          response: responseText,
+          model: this.model,
+        });
+        totalCostUsd += cost.totalUsd;
+
         if (result.status !== "finished") {
           lastErr = `agent ended with status='${result.status}'`;
           continue;
         }
-        const text = typeof result.result === "string" ? result.result : "";
-        const parsed = parseHypothesesJson(text);
+        const parsed = parseHypothesesJson(responseText);
         if (!parsed.ok) {
           lastErr = parsed.error;
           this.logger.warn("architect json parse failed", { attempt, error: parsed.error });
@@ -96,7 +106,13 @@ export class CursorArchitect implements Architect {
           lastErr = "no usable hypotheses after filtering";
           continue;
         }
-        return cleaned;
+        this.logger.info("architect cost estimate", {
+          callIndex,
+          attempts: attempt + 1,
+          totalUsd: round6(totalCostUsd),
+          modelKnown: cost.modelKnown,
+        });
+        return { hypotheses: cleaned, costUsd: round6(totalCostUsd) };
       } catch (err) {
         await this.discardWorkingTreeChanges(ctx.target).catch(() => undefined);
         if (err instanceof CursorAgentError) {
@@ -115,8 +131,11 @@ export class CursorArchitect implements Architect {
       }
     }
 
-    this.logger.warn("architect returning empty hypothesis batch", { lastErr });
-    return [];
+    this.logger.warn("architect returning empty hypothesis batch", {
+      lastErr,
+      totalCostUsd: round6(totalCostUsd),
+    });
+    return { hypotheses: [], costUsd: round6(totalCostUsd) };
   }
 
   private normalize(
@@ -251,6 +270,10 @@ const retryPrompt = (original: string, lastErr: string): string =>
 
 function normalizePath(p: string): string {
   return p.replace(/\\/g, "/").replace(/^\.\//, "");
+}
+
+function round6(n: number): number {
+  return Math.round(n * 1e6) / 1e6;
 }
 
 async function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {

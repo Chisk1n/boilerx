@@ -123,14 +123,15 @@ describe("CursorArchitect", () => {
     const arch = new CursorArchitect({ apiKey: "test", model: "composer-2", logger: SILENT });
     const out = await arch.proposeHypotheses(baseCtx(repo), 3);
 
-    expect(out.length).toBe(2);
-    expect(out[0]?.id).toBe("h-0-0");
-    expect(out[1]?.id).toBe("h-0-1");
-    expect(out[0]?.summary).toBe("refactor handler");
-    expect(out[0]?.affectedFiles).toEqual(["src/handler.ts"]);
+    expect(out.hypotheses.length).toBe(2);
+    expect(out.hypotheses[0]?.id).toBe("h-0-0");
+    expect(out.hypotheses[1]?.id).toBe("h-0-1");
+    expect(out.hypotheses[0]?.summary).toBe("refactor handler");
+    expect(out.hypotheses[0]?.affectedFiles).toEqual(["src/handler.ts"]);
+    expect(out.costUsd).toBeGreaterThan(0);
 
     const arch2Calls = await arch.proposeHypotheses(baseCtx(repo), 1);
-    expect(arch2Calls[0]?.id).toBe("h-1-0");
+    expect(arch2Calls.hypotheses[0]?.id).toBe("h-1-0");
   });
 
   it("filters forbidden paths from affectedFiles", async () => {
@@ -145,8 +146,8 @@ describe("CursorArchitect", () => {
     const arch = new CursorArchitect({ apiKey: "test", model: "composer-2", logger: SILENT });
     const out = await arch.proposeHypotheses(baseCtx(repo), 1);
 
-    expect(out.length).toBe(1);
-    expect(out[0]?.affectedFiles).toEqual(["src/ok.ts"]);
+    expect(out.hypotheses.length).toBe(1);
+    expect(out.hypotheses[0]?.affectedFiles).toEqual(["src/ok.ts"]);
   });
 
   it("retries once on bad JSON, then succeeds", async () => {
@@ -165,12 +166,12 @@ describe("CursorArchitect", () => {
       maxRetries: 1,
     });
     const out = await arch.proposeHypotheses(baseCtx(repo), 1);
-    expect(out.length).toBe(1);
-    expect(out[0]?.summary).toBe("recovered");
+    expect(out.hypotheses.length).toBe(1);
+    expect(out.hypotheses[0]?.summary).toBe("recovered");
     expect(promptMock).toHaveBeenCalledTimes(2);
   });
 
-  it("returns empty array when all retries fail (does not throw)", async () => {
+  it("returns empty hypotheses with non-zero cost when all retries fail (does not throw)", async () => {
     promptMock.mockResolvedValue({ status: "finished", id: "r", result: "no json here" });
 
     const arch = new CursorArchitect({
@@ -180,7 +181,8 @@ describe("CursorArchitect", () => {
       maxRetries: 2,
     });
     const out = await arch.proposeHypotheses(baseCtx(repo), 2);
-    expect(out).toEqual([]);
+    expect(out.hypotheses).toEqual([]);
+    expect(out.costUsd).toBeGreaterThan(0);
     expect(promptMock).toHaveBeenCalledTimes(3);
   });
 
@@ -197,7 +199,7 @@ describe("CursorArchitect", () => {
 
     const arch = new CursorArchitect({ apiKey: "test", model: "composer-2", logger: SILENT });
     const out = await arch.proposeHypotheses(baseCtx(repo), 1);
-    expect(out.length).toBe(1);
+    expect(out.hypotheses.length).toBe(1);
 
     const src = (await readFile(join(repo, "src.ts"), "utf8")).replace(/\r\n/g, "\n");
     expect(src).toBe("export const v = 1;\n");
@@ -219,10 +221,10 @@ describe("CursorArchitect", () => {
     });
     const arch = new CursorArchitect({ apiKey: "test", model: "composer-2", logger: SILENT });
     const out = await arch.proposeHypotheses(baseCtx(repo), 2);
-    expect(out.map((h) => h.summary)).toEqual(["a", "b"]);
+    expect(out.hypotheses.map((h) => h.summary)).toEqual(["a", "b"]);
   });
 
-  it("treats agent run with status='error' as a recoverable failure (returns empty)", async () => {
+  it("treats agent run with status='error' as a recoverable failure (returns empty hypotheses)", async () => {
     promptMock.mockResolvedValue({ status: "error", id: "r", result: "" });
     const arch = new CursorArchitect({
       apiKey: "test",
@@ -231,6 +233,7 @@ describe("CursorArchitect", () => {
       maxRetries: 0,
     });
     const out = await arch.proposeHypotheses(baseCtx(repo), 2);
-    expect(out).toEqual([]);
+    expect(out.hypotheses).toEqual([]);
+    expect(out.costUsd).toBeGreaterThanOrEqual(0);
   });
 });

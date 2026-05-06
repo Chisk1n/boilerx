@@ -198,13 +198,42 @@ node --env-file=.env packages/cli/dist/index.js evolve \
   --max-iterations 5 --workers 2 --max-cost-usd 1.00
 ```
 
-### What's NOT done yet (Phase 4+)
+### Phase 4 (in progress) — Cost reporting
 
-- Real LLM-backed **Architect** (workers are LLM-driven, the architect is
-  still a `StubArchitect` cycling fixed hypotheses).
+Both the Architect and Worker now report estimated USD cost per run via
+`packages/evolve/src/cost.ts`. The Cursor SDK does **not** expose
+authoritative cost or token counts on its `RunResult`, so we approximate:
+
+```
+inputTokens  = ceil(prompt.length / 4)
+outputTokens = ceil(response.length / 4)
+inputUsd     = inputTokens / 1_000_000 * pricing.inputPerMTokens
+outputUsd    = outputTokens / 1_000_000 * pricing.outputPerMTokens
+total        = round6(inputUsd + outputUsd)
+```
+
+Pricing defaults live in `DEFAULT_PRICING` (composer-2, claude-sonnet-4-x,
+gpt-5.x, gemini-3.x, etc.). Override at runtime via `BOILERX_PRICING` env
+var (JSON):
+
+```bash
+BOILERX_PRICING='{"composer-2":{"inputPerMTokens":3,"outputPerMTokens":15}}'
+```
+
+Errors of ±30% are normal: tokenizers differ, thinking/tool-call tokens get
+billed but not surfaced, and pricing changes faster than this map. **Use
+`--max-cost-usd` with margin and reconcile against your Cursor dashboard
+for ground truth.** Unknown models fall back to a conservative high tier so
+the budget cap errs on the safe side.
+
+`Architect.proposeHypotheses` now returns `{ hypotheses, costUsd }`; the
+orchestrator threads architect cost into both the per-iteration log record
+and the budget circuit-breaker.
+
+### What's NOT done yet (rest of Phase 4 / Phase 5)
+
+- Auto-apply winning worktree back to base.
 - Docker sandbox around Judge command execution.
-- "Apply winning worktree back to base" step (currently the orchestrator just
-  records the winning path; the user copies changes manually).
 - LLM-as-judge backend for the `llmJudgeRubric` axis.
 - Determinism check (re-run each iteration twice and compare).
 - Resume support after a killed run.

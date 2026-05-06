@@ -115,12 +115,13 @@ export class Orchestrator {
           break;
         }
 
-        const hypotheses = await this.architect.proposeHypotheses(
+        const proposal = await this.architect.proposeHypotheses(
           { target: config.target, previousIterations: history, bestScore },
           config.workersPerIteration,
         );
+        totalCostUsd += proposal.costUsd;
 
-        const evaluated = await this.runIteration(i, hypotheses, expectedJudgeHash);
+        const evaluated = await this.runIteration(i, proposal.hypotheses, expectedJudgeHash);
 
         if (evaluated.driftDetected) {
           await this.abort(log, "judge-hash-drift", evaluated.driftDetail ?? "(no detail)");
@@ -129,19 +130,20 @@ export class Orchestrator {
         }
 
         const successful = evaluated.results.filter((r) => r.verdict !== undefined);
+        const workerCost = evaluated.results.reduce((sum, r) => sum + r.costUsd, 0);
 
         if (successful.length === 0) {
           await this.appendIteration(log, {
             iteration: i,
-            hypothesisId: hypotheses[0]?.id ?? "(none)",
+            hypothesisId: proposal.hypotheses[0]?.id ?? "(none)",
             worktree: "",
             score: bestScore,
             previousBest: bestScore,
             kept: false,
             reason: "all workers failed",
-            costUsd: evaluated.results.reduce((sum, r) => sum + r.costUsd, 0),
+            costUsd: workerCost + proposal.costUsd,
           });
-          totalCostUsd += evaluated.results.reduce((sum, r) => sum + r.costUsd, 0);
+          totalCostUsd += workerCost;
           totalIterations++;
           await this.cleanupAll(evaluated.worktrees);
           continue;
@@ -152,7 +154,7 @@ export class Orchestrator {
         );
         const bestVerdict = best.verdict!;
         const kept = bestVerdict.score > bestScore;
-        const iterCost = successful.reduce((sum, r) => sum + r.costUsd, 0);
+        const iterCost = workerCost + proposal.costUsd;
 
         await this.appendIteration(log, {
           iteration: i,
@@ -166,7 +168,7 @@ export class Orchestrator {
         });
 
         history.push({ score: bestVerdict.score, summary: best.hypothesis.summary });
-        totalCostUsd += iterCost;
+        totalCostUsd += workerCost;
         totalIterations++;
         if (kept) {
           bestScore = bestVerdict.score;
