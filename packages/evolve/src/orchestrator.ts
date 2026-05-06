@@ -21,6 +21,14 @@ export interface OrchestratorDeps {
   readonly logger: Logger;
   readonly clock?: () => number;
   readonly runDirOverride?: string;
+  /**
+   * If `true` (default), the orchestrator copies the winning iteration's
+   * working-tree changes back into the base repo via `git diff` + `git apply`.
+   * The base ends up with a dirty working tree the user can review and
+   * commit. If `false`, the orchestrator only logs the winning worktree
+   * path and leaves the base untouched (legacy behavior).
+   */
+  readonly autoApplyWinner?: boolean;
 }
 
 /**
@@ -50,6 +58,7 @@ export class Orchestrator {
   private readonly logger: Logger;
   private readonly now: () => number;
   private readonly runDirOverride: string | undefined;
+  private readonly autoApplyWinner: boolean;
 
   constructor(deps: OrchestratorDeps) {
     this.architect = deps.architect;
@@ -59,6 +68,7 @@ export class Orchestrator {
     this.logger = deps.logger.child({ component: "orchestrator" });
     this.now = deps.clock ?? Date.now;
     this.runDirOverride = deps.runDirOverride;
+    this.autoApplyWinner = deps.autoApplyWinner ?? true;
   }
 
   async run(config: EvolveRunConfig): Promise<EvolveRunSummary> {
@@ -173,6 +183,22 @@ export class Orchestrator {
         if (kept) {
           bestScore = bestVerdict.score;
           bestIteration = i;
+          if (this.autoApplyWinner) {
+            const message = `feat(evolve): ${best.hypothesis.summary} (iter=${i}, score=${bestVerdict.score.toFixed(4)})`;
+            const apply = await this.worktrees.applyWorktreePatch(best.worktree, message);
+            if (apply.applied) {
+              this.logger.info("winner applied and committed to base", {
+                iteration: i,
+                files: apply.files,
+                commitSha: apply.commitSha,
+              });
+            } else {
+              this.logger.warn("winner apply skipped or failed", {
+                iteration: i,
+                reason: apply.reason,
+              });
+            }
+          }
         }
 
         await this.cleanupAll(evaluated.worktrees);

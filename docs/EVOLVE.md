@@ -230,9 +230,40 @@ the budget cap errs on the safe side.
 orchestrator threads architect cost into both the per-iteration log record
 and the budget circuit-breaker.
 
+### Phase 4 (in progress) — Auto-apply winner
+
+When an iteration improves the running best score, the orchestrator now
+copies the winning worktree's changes back to the base repo and commits
+them. Subsequent iterations create their worktrees from the new HEAD, so
+**winners stack** — iteration N starts from the codebase the previous
+winners produced.
+
+Mechanism (per kept iteration):
+
+```
+git -C <worktree>  add -N .                   # include untracked in diff
+git -C <worktree>  diff --binary HEAD         # serialize changes
+git -C <baseRepo>  apply --3way <patch>       # replay
+git -C <baseRepo>  add -A
+git -C <baseRepo>  commit -c user.name=boilerx-evolve \
+                          -c user.email=evolve@boilerx.local \
+                          -m "feat(evolve): <summary> (iter=N, score=X.XXXX)"
+```
+
+The user's git config is untouched; we use `-c name=value` per call. After
+the run, `git log --author=boilerx-evolve` shows every kept iteration,
+ready to squash, rebase, push, or `git reset HEAD~N` to discard.
+
+Opt-out via `boiler evolve --no-auto-apply`. With it, behavior is the old
+"orchestrator records the winner path; user copies manually".
+
+If the apply fails (rejected hunks, conflicts, etc.) we restore the base's
+working tree with `git checkout HEAD -- . && git clean -fd .` and report
+`applied: false, reason: …` in the iteration record. The base never ends
+up dirty between iterations.
+
 ### What's NOT done yet (rest of Phase 4 / Phase 5)
 
-- Auto-apply winning worktree back to base.
 - Docker sandbox around Judge command execution.
 - LLM-as-judge backend for the `llmJudgeRubric` axis.
 - Determinism check (re-run each iteration twice and compare).

@@ -37,6 +37,11 @@ export function registerEvolveCommand(program: Command, logger: Logger): void {
       `Worker runtime: ${RUNTIMES.join(" | ")}. Default 'stub' (deterministic, no LLM).`,
       "stub",
     )
+    .option(
+      "--no-auto-apply",
+      "Do NOT commit the winning iteration's changes back to the base repo. " +
+        "Default: auto-apply ON (each kept iteration becomes a new commit on your current branch).",
+    )
     .action(async (opts: EvolveOptions) => {
       const target = resolvePath(opts.target);
       const metricFilePath = resolvePath(target, opts.metric);
@@ -66,6 +71,7 @@ export function registerEvolveCommand(program: Command, logger: Logger): void {
         judge,
         worktreeManager: wt,
         logger,
+        autoApplyWinner: opts.autoApply !== false,
       });
 
       const summary = await orch.run({
@@ -153,4 +159,5 @@ interface EvolveOptions {
   readonly maxWallMin: string;
   readonly model: string;
   readonly runtime: string;
+  readonly autoApply: boolean;
 }
