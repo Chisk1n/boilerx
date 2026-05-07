@@ -17,10 +17,12 @@
     "test": "npm run test --workspaces --if-present",
     "lint": "echo \"(lint placeholder, configure in fase 1)\"",
     "cli": "node packages/cli/dist/index.js",
-    "dev:cli": "tsx packages/cli/src/index.ts"
+    "dev:cli": "tsx packages/cli/src/index.ts",
+    "docs:pdf": "node scripts/build-pdf.mjs"
   },
   "devDependencies": {
     "@types/node": "^22.9.0",
+    "marked": "^18.0.3",
     "tsx": "^4.19.2",
     "typescript": "^5.6.3"
   }
