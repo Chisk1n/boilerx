@@ -49,6 +49,10 @@ Thumbs.db
 /sandbox/
 /tmp/
 
+# Generated docs (PDFs are produced by `npm run docs:pdf` from .md sources;
+# only the .md is versioned)
+docs/*.pdf
+
 # Misc
 *.pid
 *.seed
